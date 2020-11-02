@@ -32,17 +32,22 @@ import net.dv8tion.jda.api.requests.restaction.MessageAction;
 import net.robinfriedli.botify.Botify;
 import net.robinfriedli.botify.boot.SpringPropertiesConfig;
 import net.robinfriedli.botify.boot.configurations.HibernateComponent;
-import net.robinfriedli.botify.discord.property.AbstractGuildProperty;
 import net.robinfriedli.botify.discord.property.GuildPropertyManager;
 import net.robinfriedli.botify.discord.property.properties.ColorSchemeProperty;
 import net.robinfriedli.botify.discord.property.properties.TempMessageTimeoutProperty;
 import net.robinfriedli.botify.entities.GuildSpecification;
+import net.robinfriedli.botify.function.modes.RecursionPreventionMode;
+import net.robinfriedli.exec.Invoker;
+import net.robinfriedli.exec.Mode;
 import net.robinfriedli.stringlist.StringList;
 import org.hibernate.Session;
 import org.springframework.stereotype.Component;
 
 @Component
 public class MessageService {
+
+    private static final Invoker RECURSION_PREVENTION_INVOKER = Invoker.newInstance();
+    private static final Mode RECURSION_PREVENTION_MODE = Mode.create().with(new RecursionPreventionMode());
 
     private final int limit = 1000;
     private final GuildManager guildManager;
@@ -294,9 +299,11 @@ public class MessageService {
             Permission permission = e.getPermission();
             if (permission == Permission.MESSAGE_WRITE || permission == Permission.MESSAGE_READ) {
                 if (channel instanceof TextChannel && canTalk(((TextChannel) channel).getGuild())) {
-                    Guild guild = ((TextChannel) channel).getGuild();
-                    sendTemporary("I do not have permission to send any messages to channel " + channel.getName() + " so I'll send it here instead.", guild);
-                    executeMessageAction(guild, function).thenAccept(futureMessage::complete);
+                    RECURSION_PREVENTION_INVOKER.invoke(RECURSION_PREVENTION_MODE, () -> {
+                        Guild guild = ((TextChannel) channel).getGuild();
+                        sendTemporary("I do not have permission to send any messages to channel " + channel.getName() + " so I'll send it here instead.", guild);
+                        executeMessageAction(guild, function).thenAccept(futureMessage::complete);
+                    });
                 } else if (channel instanceof TextChannel) {
                     logger.warn("Unable to send messages to guild " + ((TextChannel) channel).getGuild());
                     futureMessage.completeExceptionally(e);
@@ -312,8 +319,14 @@ public class MessageService {
                 logger.warn(errorMessage.toString());
 
                 futureMessage.completeExceptionally(e);
-                String message = "Bot is missing permission: " + permission.getName();
-                send(message, channel);
+
+                if (permission != Permission.VIEW_CHANNEL) {
+                    String message = "Bot is missing permission: " + permission.getName();
+
+                    RECURSION_PREVENTION_INVOKER.invoke(RECURSION_PREVENTION_MODE, () -> {
+                        send(message, channel);
+                    });
+                }
             }
         }
 
@@ -445,7 +458,7 @@ public class MessageService {
             int timeoutSeconds;
             try {
                 timeoutSeconds = getTimeout();
-            } catch (Throwable e) {
+            } catch (Exception e) {
                 logger.error("Exception loading tempMessageTimeout property", e);
                 return;
             }
@@ -456,7 +469,7 @@ public class MessageService {
                     }, this::logError);
                 } catch (InsufficientPermissionException e) {
                     logger.warn(String.format("Insufficient permission to delete temp message %s on guild %s", message, message.getGuild()));
-                } catch (Throwable e) {
+                } catch (Exception e) {
                     logError(e);
                 }
             }
@@ -467,14 +480,12 @@ public class MessageService {
                 return hibernateComponent.invokeWithSession(session -> {
                     Botify botify = Botify.get();
                     GuildPropertyManager guildPropertyManager = botify.getGuildPropertyManager();
-                    AbstractGuildProperty tempMessageTimeoutProperty = guildPropertyManager.getProperty("tempMessageTimeout");
-                    if (tempMessageTimeoutProperty != null) {
-                        Guild guild = message.getGuild();
-                        GuildSpecification specification = botify.getGuildManager().getContextForGuild(guild).getSpecification(session);
-                        return (int) tempMessageTimeoutProperty.get(specification);
-                    }
+                    Guild guild = message.getGuild();
+                    GuildSpecification specification = botify.getGuildManager().getContextForGuild(guild).getSpecification(session);
 
-                    return TempMessageTimeoutProperty.DEFAULT_FALLBACK;
+                    return guildPropertyManager
+                        .getPropertyValueOptional("tempMessageTimeout", Integer.class, specification)
+                        .orElse(TempMessageTimeoutProperty.DEFAULT_FALLBACK);
                 });
             }
 

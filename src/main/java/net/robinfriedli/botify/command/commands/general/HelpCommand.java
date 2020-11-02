@@ -53,9 +53,9 @@ public class HelpCommand extends AbstractCommand {
             } else if (!Strings.isNullOrEmpty(botName)) {
                 prefix = botName + " ";
             } else {
-                prefix = "$botify ";
+                prefix = PrefixProperty.DEFAULT_FALLBACK + " ";
             }
-            char argumentPrefix = ArgumentPrefixProperty.getForCurrentContext();
+            char argumentPrefix = ArgumentPrefixProperty.getForCurrentContext().getArgumentPrefix();
 
             EmbedBuilder embedBuilder = new EmbedBuilder();
             embedBuilder.setTitle("Command " + command.getIdentifier() + ":");
@@ -71,7 +71,7 @@ public class HelpCommand extends AbstractCommand {
                 if (!roles.isEmpty()) {
                     text = StringList.create(roles, Role::getName).toSeparatedString(", ");
                 } else {
-                    text = "Guild owner only";
+                    text = "Guild owner and administrator roles only";
                 }
 
                 embedBuilder.addField(title, text, false);

@@ -1,6 +1,9 @@
 package net.robinfriedli.botify.discord.property.properties;
 
+import java.util.Objects;
+
 import net.robinfriedli.botify.Botify;
+import net.robinfriedli.botify.command.parser.CommandParser;
 import net.robinfriedli.botify.discord.property.AbstractGuildProperty;
 import net.robinfriedli.botify.discord.property.GuildPropertyManager;
 import net.robinfriedli.botify.entities.GuildSpecification;
@@ -12,7 +15,7 @@ import net.robinfriedli.botify.exceptions.InvalidPropertyValueException;
  */
 public class ArgumentPrefixProperty extends AbstractGuildProperty {
 
-    public static final char DEFAULT = '$';
+    public static final char DEFAULT_FALLBACK = '$';
 
     public ArgumentPrefixProperty(GuildPropertyContribution contribution) {
         super(contribution);
@@ -24,21 +27,30 @@ public class ArgumentPrefixProperty extends AbstractGuildProperty {
      *
      * @return the set argument prefix for the current guild
      */
-    public static char getForCurrentContext() {
+    public static Config getForCurrentContext() {
         GuildPropertyManager guildPropertyManager = Botify.get().getGuildPropertyManager();
-        AbstractGuildProperty argumentPrefixProperty = guildPropertyManager.getProperty("argumentPrefix");
-        char argumentPrefix;
-        if (argumentPrefixProperty != null) {
-            argumentPrefix = (char) argumentPrefixProperty.get();
-        } else {
-            argumentPrefix = DEFAULT;
-        }
 
-        return argumentPrefix;
+        return guildPropertyManager.getPropertyOptional("argumentPrefix")
+            .map(p -> {
+                String defaultValueString = p.getDefaultValue();
+                char[] chars = defaultValueString.toCharArray();
+                if (chars.length != 1) {
+                    throw new IllegalStateException("Default value for argumentPrefix is not a single char");
+                }
+
+                char defaultArgumentPrefix = chars[0];
+                char argumentPrefix = p.get(Character.class);
+
+                return new Config(argumentPrefix, defaultArgumentPrefix);
+            }).orElseGet(() -> new Config(DEFAULT_FALLBACK, DEFAULT_FALLBACK));
     }
 
     @Override
     public void validate(Object state) {
+        Character input = (Character) state;
+        if (!Objects.equals(input, DEFAULT_FALLBACK) && CommandParser.META.contains(input)) {
+            throw new InvalidPropertyValueException("Cannot set argument prefix to reserved meta character " + input);
+        }
     }
 
     @Override
@@ -57,6 +69,25 @@ public class ArgumentPrefixProperty extends AbstractGuildProperty {
     @Override
     public Object extractPersistedValue(GuildSpecification guildSpecification) {
         return guildSpecification.getArgumentPrefix();
+    }
+
+    public static class Config {
+
+        private final char argumentPrefix;
+        private final char defaultArgumentPrefix;
+
+        public Config(char argumentPrefix, char defaultArgumentPrefix) {
+            this.argumentPrefix = argumentPrefix;
+            this.defaultArgumentPrefix = defaultArgumentPrefix;
+        }
+
+        public char getArgumentPrefix() {
+            return argumentPrefix;
+        }
+
+        public char getDefaultArgumentPrefix() {
+            return defaultArgumentPrefix;
+        }
     }
 
 }
