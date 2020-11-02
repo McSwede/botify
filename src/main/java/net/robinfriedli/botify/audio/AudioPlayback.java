@@ -158,8 +158,8 @@ public class AudioPlayback {
             audioPlayer.stopTrack();
             changedAnything = true;
         }
-        if (getVolume() != 100) {
-            setVolume(100);
+        if (getVolume() != 30) {
+            setVolume(30);
             changedAnything = true;
         }
         if (isShuffle()) {
