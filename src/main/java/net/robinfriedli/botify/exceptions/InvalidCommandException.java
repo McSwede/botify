@@ -27,7 +27,7 @@ public class InvalidCommandException extends AdditionalInformationException {
     @Override
     public String getAdditionalInformation() {
         String prefix = PrefixProperty.getEffectiveCommandStartForCurrentContext();
-        return String.format("If you need help with a command you can use the help command. E.g. %shelp play", prefix);
+        return String.format("All available commands and their syntax is written in the pinned message");
     }
 
 }
