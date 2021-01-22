@@ -6,16 +6,19 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.wrapper.spotify.SpotifyApi;
+import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.events.message.guild.GuildMessageDeleteEvent;
 import net.dv8tion.jda.api.events.message.guild.react.GuildMessageReactionAddEvent;
+import net.dv8tion.jda.api.exceptions.InsufficientPermissionException;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.robinfriedli.botify.Botify;
 import net.robinfriedli.botify.boot.configurations.HibernateComponent;
-import net.robinfriedli.botify.command.AbstractWidget;
 import net.robinfriedli.botify.command.CommandContext;
-import net.robinfriedli.botify.command.widgets.WidgetManager;
+import net.robinfriedli.botify.command.widget.AbstractWidget;
+import net.robinfriedli.botify.command.widget.WidgetRegistry;
 import net.robinfriedli.botify.concurrent.EventHandlerPool;
 import net.robinfriedli.botify.discord.GuildContext;
 import net.robinfriedli.botify.discord.GuildManager;
@@ -46,10 +49,10 @@ public class WidgetListener extends ListenerAdapter {
     public void onGuildMessageReactionAdd(GuildMessageReactionAddEvent event) {
         if (!event.getUser().isBot()) {
             EventHandlerPool.execute(() -> {
-                String messageId = event.getMessageId();
-                WidgetManager widgetManager = guildManager.getContextForGuild(event.getGuild()).getWidgetManager();
+                long messageId = event.getMessageIdLong();
+                WidgetRegistry widgetRegistry = guildManager.getContextForGuild(event.getGuild()).getWidgetRegistry();
 
-                Optional<AbstractWidget> activeWidget = widgetManager.getActiveWidget(messageId);
+                Optional<AbstractWidget> activeWidget = widgetRegistry.getActiveWidget(messageId);
                 activeWidget.ifPresent(abstractWidget -> handleWidgetExecution(event, abstractWidget));
             });
         }
@@ -58,8 +61,8 @@ public class WidgetListener extends ListenerAdapter {
     @Override
     public void onGuildMessageDelete(@NotNull GuildMessageDeleteEvent event) {
         EventHandlerPool.execute(() -> {
-            WidgetManager widgetManager = guildManager.getContextForGuild(event.getGuild()).getWidgetManager();
-            widgetManager.getActiveWidget(event.getMessageId()).ifPresent(widget -> {
+            WidgetRegistry widgetRegistry = guildManager.getContextForGuild(event.getGuild()).getWidgetRegistry();
+            widgetRegistry.getActiveWidget(event.getMessageIdLong()).ifPresent(widget -> {
                 widget.setMessageDeleted(true);
                 widget.destroy();
             });
@@ -70,24 +73,35 @@ public class WidgetListener extends ListenerAdapter {
         TextChannel channel = event.getChannel();
         Guild guild = event.getGuild();
         Botify botify = Botify.get();
-        SpotifyApi spotifyApi = botify.getSpotifyApiBuilder().build();
+        SpotifyApi.Builder spotifyApiBuilder = botify.getSpotifyApiBuilder();
         GuildContext guildContext = botify.getGuildManager().getContextForGuild(guild);
         String emojiUnicode = event.getReaction().getReactionEmote().getName();
-        CommandContext commandContext = new CommandContext(
-            event,
-            guildContext,
-            activeWidget.getMessage(),
-            hibernateComponent.getSessionFactory(),
-            spotifyApi,
-            emojiUnicode
-        );
 
         try {
+            Message message = activeWidget.getMessage().retrieve();
+
+            if (message == null) {
+                throw new IllegalStateException("Message of widget could not be retrieved.");
+            }
+
+            CommandContext commandContext = new CommandContext(
+                event,
+                guildContext,
+                message,
+                hibernateComponent.getSessionFactory(),
+                spotifyApiBuilder,
+                emojiUnicode
+            );
+
             activeWidget.handleReaction(event, commandContext);
         } catch (UserException e) {
             messageService.sendError(e.getMessage(), channel);
+        } catch (InsufficientPermissionException e) {
+            Permission permission = e.getPermission();
+            messageService.send("Bot is missing permission: " + permission.getName(), channel);
+            logger.warn(String.format("Missing permission %s on guild %s", permission, guild));
         } catch (Exception e) {
-            logger.error("Exception while preparing WidgetAction execution.", e);
+            logger.error("Exception while handling WidgetAction execution.", e);
         }
     }
 

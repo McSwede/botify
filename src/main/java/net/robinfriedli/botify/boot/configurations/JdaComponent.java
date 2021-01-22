@@ -4,6 +4,10 @@ import java.util.EnumSet;
 
 import javax.security.auth.login.LoginException;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.sedmelluq.discord.lavaplayer.jdaudp.NativeAudioSendFactory;
 import net.dv8tion.jda.api.OnlineStatus;
 import net.dv8tion.jda.api.requests.GatewayIntent;
 import net.dv8tion.jda.api.sharding.DefaultShardManagerBuilder;
@@ -24,10 +28,13 @@ import static net.dv8tion.jda.api.utils.cache.CacheFlag.*;
 @DependsOn("liquibase")
 public class JdaComponent {
 
-    @Value("${botify.tokens.discord_token}")
-    private String discordToken;
+    private final Logger logger = LoggerFactory.getLogger(getClass());
 
     private final StartupListener startupListener;
+    @Value("${botify.tokens.discord_token}")
+    private String discordToken;
+    @Value("${botify.preferences.native_audio_buffer}")
+    private int nativeBufferDuration;
 
     public JdaComponent(StartupListener startupListener) {
         this.startupListener = startupListener;
@@ -40,16 +47,35 @@ public class JdaComponent {
         // this event is used for
         EnumSet<GatewayIntent> gatewayIntents = EnumSet.of(GUILD_MESSAGES, GUILD_MESSAGE_REACTIONS, DIRECT_MESSAGES, GUILD_VOICE_STATES);
         try {
-            return DefaultShardManagerBuilder.create(discordToken, gatewayIntents)
+            DefaultShardManagerBuilder shardManagerBuilder = DefaultShardManagerBuilder.create(discordToken, gatewayIntents)
                 .disableCache(EnumSet.of(ACTIVITY, EMOTE, CLIENT_STATUS))
                 .setMemberCachePolicy(MemberCachePolicy.DEFAULT)
                 .setStatus(OnlineStatus.IDLE)
                 .setChunkingFilter(ChunkingFilter.NONE)
-                .addEventListeners(startupListener)
-                .build();
+                .addEventListeners(startupListener);
+
+            if (nativeBufferDuration > 0) {
+                if (platformSupportsJdaNas()) {
+                    logger.info("Using NativeAudioSendFactory as AudioSendFactory with a buffer duration of " + nativeBufferDuration + "ms");
+                    shardManagerBuilder = shardManagerBuilder.setAudioSendFactory(new NativeAudioSendFactory(nativeBufferDuration));
+                } else {
+                    logger.info("NativeAudioSendFactory not supported on this platform");
+                }
+            } else {
+                logger.info("Native audio buffer disabled");
+            }
+
+            return shardManagerBuilder.build();
         } catch (LoginException e) {
             throw new RuntimeException("Failed to log in to discord", e);
         }
+    }
+
+    private static boolean platformSupportsJdaNas() {
+        String osName = System.getProperty("os.name").toLowerCase();
+        String osArch = System.getProperty("os.arch").toLowerCase();
+        return (osName.contains("linux") || osName.contains("windows"))
+            && (osArch.contains("amd64") || osArch.contains("x86"));
     }
 
 }

@@ -14,6 +14,7 @@ import net.robinfriedli.botify.command.Command;
 import net.robinfriedli.botify.command.CommandContext;
 import net.robinfriedli.botify.concurrent.ExecutionContext;
 import net.robinfriedli.botify.discord.MessageService;
+import org.codehaus.groovy.control.CompilationFailedException;
 
 public class ExceptionUtils {
 
@@ -35,7 +36,7 @@ public class ExceptionUtils {
     }
 
     public static void handleCommandException(Throwable e, Command command, Logger logger) {
-        if (e instanceof CommandFailure || e instanceof Abort) {
+        if (e instanceof CommandFailure) {
             return;
         }
 
@@ -90,14 +91,28 @@ public class ExceptionUtils {
     }
 
     private static void appendException(EmbedBuilder embedBuilder, Throwable e, boolean isCause, int counter) {
-        if (counter > 5) {
+        if (counter >= 5) {
             return;
         }
 
-        String message = e instanceof GoogleJsonResponseException
-            ? ((GoogleJsonResponseException) e).getDetails().getMessage()
-            : e.getMessage();
-        embedBuilder.addField(isCause ? "Caused by" : "Exception", String.format("%s: %s", e.getClass().getSimpleName(), message), false);
+        String message;
+        if (e instanceof GoogleJsonResponseException) {
+            message = ((GoogleJsonResponseException) e).getDetails().getMessage();
+        } else {
+            message = e.getMessage();
+        }
+
+        String value = String.format("%s: %s", e.getClass().getSimpleName(), message);
+
+        if (value.length() > 1000) {
+            value = value.substring(0, 995) + "[...]";
+        }
+
+        if (e instanceof CompilationFailedException) {
+            value = "```" + value + "```";
+        }
+
+        embedBuilder.addField(isCause ? "Caused by" : "Exception", value, false);
 
         if (e.getCause() != null) {
             appendException(embedBuilder, e.getCause(), true, counter + 1);

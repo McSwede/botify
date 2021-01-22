@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <whitelistConfiguration xmlns="whitelistSpace">
-  <whitelistMethods class="java.lang.Object">
+  <whitelistMethods class="java.lang.Object" allowConstructorCall="true">
     <method name="getClass"/>
     <method name="equals"/>
     <method name="toString"/>
     <method name="hashCode"/>
   </whitelistMethods>
-  <whitelistMethods class="java.lang.String">
+  <whitelistMethods class="java.lang.String" allowConstructorCall="true">
     <method name="length"/>
     <method name="isEmpty"/>
     <method name="charAt"/>
@@ -68,10 +68,86 @@
     <method name="toURI"/>
     <method name="toURL"/>
   </whitelistMethods>
+  <whitelistMethods class="java.lang.CharSequence">
+    <method name="asBoolean"/>
+    <method name="asType"/>
+    <method name="bitwiseNegate"/>
+    <method name="capitalize"/>
+    <method name="center"/>
+    <method name="contains"/>
+    <method name="containsIgnoreCase"/>
+    <method name="count"/>
+    <method name="denormalize"/>
+    <method name="drop"/>
+    <method name="dropRight"/>
+    <method name="dropWhile"/>
+    <method name="eachLine"/>
+    <method name="eachMatch"/>
+    <method name="endsWithAny"/>
+    <method name="expand"/>
+    <method name="expandLine"/>
+    <method name="find"/>
+    <method name="findAll"/>
+    <method name="getAt"/>
+    <method name="getChars"/>
+    <method name="isAllWhitespace"/>
+    <method name="isBigDecimal"/>
+    <method name="isBigInteger"/>
+    <method name="isBlank"/>
+    <method name="isCase"/>
+    <method name="isDouble"/>
+    <method name="isFloat"/>
+    <method name="isInteger"/>
+    <method name="isLong"/>
+    <method name="isNumber"/>
+    <method name="leftShift"/>
+    <method name="matches"/>
+    <method name="minus"/>
+    <method name="multiply"/>
+    <method name="next"/>
+    <method name="normalize"/>
+    <method name="padLeft"/>
+    <method name="padRight"/>
+    <method name="plus"/>
+    <method name="previous"/>
+    <method name="readLines"/>
+    <method name="replace"/>
+    <method name="replaceAll"/>
+    <method name="replaceFirst"/>
+    <method name="reverse"/>
+    <method name="size"/>
+    <method name="split"/>
+    <method name="splitEachLine"/>
+    <method name="startsWithAny"/>
+    <method name="startsWithIgnoreCase"/>
+    <method name="stripIndent"/>
+    <method name="stripMargin"/>
+    <method name="take"/>
+    <method name="takeAfter"/>
+    <method name="takeBefore"/>
+    <method name="takeBetween"/>
+    <method name="takeRight"/>
+    <method name="takeWhile"/>
+    <method name="toBigDecimal"/>
+    <method name="toBigInteger"/>
+    <method name="toDouble"/>
+    <method name="toFloat"/>
+    <method name="toInteger"/>
+    <method name="toList"/>
+    <method name="toLong"/>
+    <method name="toSet"/>
+    <method name="toShort"/>
+    <method name="tokenize"/>
+    <method name="tr"/>
+    <method name="uncapitalize"/>
+    <method name="unexpand"/>
+    <method name="unexpandLine"/>
+  </whitelistMethods>
   <whitelistMethods class="java.lang.Comparable">
     <method name="compareTo"/>
   </whitelistMethods>
   <whitelistMethods class="java.util.Collection">
+    <method name="&lt;init&gt;"/>
     <method name="size"/>
     <method name="isEmpty"/>
     <method name="contains"/>
@@ -173,6 +249,7 @@
     <method name="mismatch"/>
   </whitelistMethods>
   <whitelistMethods class="java.util.Map">
+    <method name="&lt;init&gt;"/>
     <method name="size"/>
     <method name="isEmpty"/>
     <method name="containsKey"/>
@@ -202,6 +279,7 @@
     <method name="copyOf"/>
   </whitelistMethods>
   <whitelistMethods class="java.util.Map$Entry">
+    <method name="&lt;init&gt;"/>
     <method name="getKey"/>
     <method name="getValue"/>
     <method name="setValue"/>
@@ -211,6 +289,7 @@
     <method name="comparingByValue"/>
   </whitelistMethods>
   <whitelistMethods class="java.lang.Iterable">
+    <method name="&lt;init&gt;"/>
     <method name="iterator"/>
     <method name="forEach"/>
     <method name="spliterator"/>
@@ -304,14 +383,39 @@
     <method name="getCommandContextId"/>
     <method name="isWidget"/>
   </whitelistMethods>
+  <whitelistMethods class="net.robinfriedli.botify.command.Command">
+    <method name="isFailed"/>
+    <method name="getContext"/>
+    <method name="isPrivileged"/>
+    <method name="getCommandBody"/>
+    <method name="getIdentifier"/>
+    <method name="display"/>
+    <method name="abort"/>
+    <method name="isAborted"/>
+  </whitelistMethods>
   <whitelistMethods class="net.robinfriedli.botify.command.AbstractCommand">
     <method name="run" maxInvocationCount="5"/>
-    <method name="abort"/>
-    <method name="getContext"/>
-    <method name="getCommandBody"/>
     <method name="getCategory"/>
-    <method name="getIdentifier"/>
     <method name="getCommandInput"/>
+    <method name="getMessageService"/>
+    <method name="argumentSet"/>
+    <method name="getArgumentValue"/>
+    <method name="getArgumentValueWithType"/>
+    <method name="getArgumentValueOrElse"/>
+    <method name="getArgumentValueWithTypeOrElse"/>
+    <method name="getArgumentValueWithTypeOrCompute"/>
+    <method name="isPartitioned"/>
+    <method name="getDescription"/>
+    <method name="requiresInput"/>
+  </whitelistMethods>
+  <whitelistMethods class="net.robinfriedli.botify.command.SecurityManager">
+    <method name="askPermission"/>
+    <method name="ensurePermission"/>
+    <method name="hasElevatedPermissions"/>
+    <method name="isAdmin"/>
+  </whitelistMethods>
+  <whitelistMethods class="net.robinfriedli.botify.command.commands.general.AnswerCommand">
+    <method name="getTargetCommand"/>
   </whitelistMethods>
   <whitelistMethods class="net.robinfriedli.botify.discord.GuildContext">
     <method name="getGuild"/>
@@ -379,6 +483,12 @@
     <method name="getArgumentPrefix"/>
     <method name="getTempMessageTimeout"/>
     <method name="getDefaultTextChannelId"/>
+  </whitelistMethods>
+  <whitelistMethods class="net.robinfriedli.botify.util.Util">
+    <method name="getKeysForValue"/>
+    <method name="normalizeMillis"/>
+    <method name="appendEmbedList"/>
+    <method name="normalizeWhiteSpace"/>
   </whitelistMethods>
   <whitelistMethods class="net.dv8tion.jda.api.entities.Guild">
     <method name="getMemberCount"/>
@@ -536,6 +646,9 @@
     .eval "context.channel.sendMessage('destroyed').queue({msg -> System.exit(0)})"
 
     with submit we can control what methods of CompletableFuture may be used
+
+    -> this issue is now fixed with the new compile time checks, yet allowing async callbacks is still problematic when it
+       comes to invocation counts
      -->
     <method name="complete"/>
     <method name="submit"/>
@@ -570,6 +683,5 @@
   <whitelistClass class="java.util.Random"/>
   <whitelistClass class="net.dv8tion.jda.api.EmbedBuilder"/>
   <whitelistClass class="net.robinfriedli.botify.audio.AudioQueue"/>
-  <whitelistClass class="net.robinfriedli.botify.command.SecurityManager"/>
-  <whitelistClass class="org.kohsuke.groovy.sandbox.impl.Checker"/>
+  <whitelistClass class="net.robinfriedli.botify.scripting.GroovyInvocationCountCustomizer$RuntimeInvocationCountChecker"/>
 </whitelistConfiguration>

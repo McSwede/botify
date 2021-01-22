@@ -4,13 +4,12 @@ import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
-import org.slf4j.LoggerFactory;
-
 import net.dv8tion.jda.api.entities.MessageChannel;
 import net.robinfriedli.botify.concurrent.ExecutionContext;
 import net.robinfriedli.botify.concurrent.ThreadContext;
 import net.robinfriedli.botify.discord.GuildContext;
-import net.robinfriedli.botify.exceptions.ExceptionUtils;
+import net.robinfriedli.botify.exceptions.CommandRuntimeException;
+import net.robinfriedli.botify.exceptions.handler.TrackLoadingExceptionHandlerExecutor;
 
 /**
  * TrackLoadingExecutor implementation that holds one single thread to execute the task with asynchronously. If another
@@ -47,7 +46,7 @@ public class ReplaceableTrackLoadingExecutor implements TrackLoadingExecutor {
         }
 
         int expectedThreadNumber = threadNumber.incrementAndGet();
-        ExecutionContext finalExecutionContext = executionContext != null ? executionContext.threadSafe() : null;
+        ExecutionContext finalExecutionContext = executionContext != null ? executionContext.fork() : null;
         Future<?> future = PooledTrackLoadingExecutor.GLOBAL_POOL.submit(() -> {
             try {
                 if (finalExecutionContext != null) {
@@ -61,7 +60,11 @@ public class ReplaceableTrackLoadingExecutor implements TrackLoadingExecutor {
 
                 trackLoadingRunnable.run();
             } catch (Exception e) {
-                ExceptionUtils.handleTrackLoadingException(e, LoggerFactory.getLogger(ReplaceableTrackLoadingExecutor.class), finalExecutionContext, channel);
+                try {
+                    new TrackLoadingExceptionHandlerExecutor(finalExecutionContext, channel).handleException(e);
+                } catch (Throwable propagate) {
+                    CommandRuntimeException.throwRuntimeException(propagate);
+                }
             } finally {
                 ThreadContext.Current.clear();
                 if (expectedThreadNumber == threadNumber.get()) {

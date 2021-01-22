@@ -13,9 +13,9 @@ import net.robinfriedli.botify.entities.StoredScript;
 import net.robinfriedli.botify.entities.xml.CommandContribution;
 import net.robinfriedli.botify.exceptions.InvalidCommandException;
 import net.robinfriedli.botify.persist.qb.QueryBuilderFactory;
-import net.robinfriedli.botify.scripting.GroovyVariables;
+import net.robinfriedli.botify.scripting.GroovyVariableManager;
+import net.robinfriedli.botify.util.EmbedTable;
 import net.robinfriedli.botify.util.SearchEngine;
-import net.robinfriedli.botify.util.Table2;
 import org.codehaus.groovy.control.CompilationFailedException;
 import org.hibernate.Session;
 
@@ -34,15 +34,20 @@ public abstract class AbstractScriptCommand extends AbstractCommand {
         Session session = context.getSession();
         QueryBuilderFactory queryBuilderFactory = Botify.get().getQueryBuilderFactory();
         if (argumentSet("delete")) {
-            deleteScript(session);
+            StoredScript foundScript = findScript(session);
+            invoke(() -> session.delete(foundScript));
+        } else if (argumentSet("identifier") && !getCommandInput().isBlank()) {
+            saveNewScript(queryBuilderFactory, session, context);
+        } else if (argumentSet("activate")) {
+            toggleActivation(false, session);
+        } else if (argumentSet("deactivate")) {
+            toggleActivation(true, session);
         } else if (getCommandInput().isBlank()) {
             if (argumentSet("identifier")) {
                 sendScript(getArgumentValue("identifier"), session);
             } else {
                 listAllScripts(queryBuilderFactory, session, context);
             }
-        } else if (argumentSet("identifier")) {
-            saveNewScript(queryBuilderFactory, session, context);
         } else {
             sendScript(getCommandInput(), session);
         }
@@ -66,8 +71,9 @@ public abstract class AbstractScriptCommand extends AbstractCommand {
             getMessageService().sendTemporary(embedBuilder, context.getChannel());
         } else {
             embedBuilder.setDescription(String.format("Show a specific %s by entering its identifier", scriptUsageId));
-            Table2 table = new Table2(embedBuilder);
+            EmbedTable table = new EmbedTable(embedBuilder);
             table.addColumn("Identifier", storedScripts, StoredScript::getIdentifier);
+            table.addColumn("Active", storedScripts, script -> String.valueOf(script.isActive()));
             table.build();
             sendMessage(embedBuilder);
         }
@@ -83,12 +89,27 @@ public abstract class AbstractScriptCommand extends AbstractCommand {
             throw new InvalidCommandException(String.format("%s with identifier '%s' already exists", scriptUsageId, identifier));
         }
 
-        GroovyShell groovyShell = new GroovyShell(Botify.get().getGroovySandboxComponent().getCompilerConfiguration());
-        GroovyVariables.addVariables(groovyShell, context, this, getMessageService(), Botify.get().getSecurityManager());
+        Botify botify = Botify.get();
+        GroovyVariableManager groovyVariableManager = botify.getGroovyVariableManager();
+
+        GroovyShell groovyShell;
+        if (argumentSet("privileged")) {
+            groovyShell = new GroovyShell();
+        } else {
+            groovyShell = new GroovyShell(botify.getGroovySandboxComponent().getCompilerConfiguration());
+        }
+
+        groovyVariableManager.prepareShell(groovyShell);
         try {
             groovyShell.parse(script);
         } catch (CompilationFailedException e) {
-            throw new InvalidCommandException("Could not compile provided script: " + e.getMessage());
+            String message = e.getMessage();
+
+            if (message.length() > 900) {
+                message = message.substring(0, 895) + "[...]";
+            }
+
+            throw new InvalidCommandException(String.format("Could not compile provided script:%s```%s```", System.lineSeparator(), message));
         }
 
         StoredScript.ScriptUsage scriptUsage = queryBuilderFactory
@@ -102,6 +123,7 @@ public abstract class AbstractScriptCommand extends AbstractCommand {
         storedScript.setIdentifier(identifier);
         storedScript.setScript(script);
         storedScript.setScriptUsage(scriptUsage);
+        storedScript.setActive(!argumentSet("deactivate"));
 
         invoke(() -> session.persist(storedScript));
     }
@@ -115,20 +137,47 @@ public abstract class AbstractScriptCommand extends AbstractCommand {
             String rest = scriptUsageId.length() > 1 ? scriptUsageId.substring(1) : "";
             EmbedBuilder embedBuilder = new EmbedBuilder();
             embedBuilder.setTitle(String.format("%s%s: %s", firstLetter, rest, script.getIdentifier()));
-            embedBuilder.setDescription("```groovy" + System.lineSeparator() + script.getScript() + System.lineSeparator() + "```");
+            embedBuilder.addField("Active", String.valueOf(script.isActive()), true);
+            embedBuilder.addField("Groovy script", "```groovy" + System.lineSeparator() + script.getScript() + System.lineSeparator() + "```", false);
             sendMessage(embedBuilder);
         } else {
             throw new InvalidCommandException(String.format("No such %s '%s'", scriptUsageId, identifier));
         }
     }
 
-    private void deleteScript(Session session) {
-        Optional<StoredScript> foundScript = SearchEngine.searchScript(getCommandInput(), scriptUsageId, session);
-
-        if (foundScript.isPresent()) {
-            invoke(() -> session.delete(foundScript.get()));
+    private StoredScript findScript(Session session) {
+        String identifier;
+        if (argumentSet("identifier")) {
+            identifier = getArgumentValue("identifier");
+        } else if (!getCommandInput().isBlank()) {
+            identifier = getCommandInput();
         } else {
-            throw new InvalidCommandException(String.format("No saved %s found for '%s'", scriptUsageId, getCommandInput()));
+            throw new InvalidCommandException("Expected either the command input or identifier argument to specify the target script.");
+        }
+
+        Optional<StoredScript> foundScript = SearchEngine.searchScript(identifier, scriptUsageId, session);
+        if (foundScript.isPresent()) {
+            return foundScript.get();
+        } else {
+            throw new InvalidCommandException(String.format("No saved %s found for '%s'", scriptUsageId, identifier));
+        }
+    }
+
+    private void toggleActivation(boolean deactivate, Session session) {
+        StoredScript script = findScript(session);
+
+        if (deactivate) {
+            if (script.isActive()) {
+                invoke(() -> script.setActive(false));
+            } else {
+                throw new InvalidCommandException("Script is already inactive.");
+            }
+        } else {
+            if (script.isActive()) {
+                throw new InvalidCommandException("Script is already active.");
+            } else {
+                invoke(() -> script.setActive(true));
+            }
         }
     }
 

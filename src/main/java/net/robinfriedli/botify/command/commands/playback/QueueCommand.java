@@ -27,8 +27,8 @@ import net.robinfriedli.botify.audio.youtube.YouTubeVideo;
 import net.robinfriedli.botify.command.CommandContext;
 import net.robinfriedli.botify.command.CommandManager;
 import net.robinfriedli.botify.command.commands.AbstractQueueLoadingCommand;
-import net.robinfriedli.botify.command.widgets.QueueWidget;
-import net.robinfriedli.botify.command.widgets.WidgetManager;
+import net.robinfriedli.botify.command.widget.WidgetRegistry;
+import net.robinfriedli.botify.command.widget.widgets.QueueWidget;
 import net.robinfriedli.botify.entities.xml.CommandContribution;
 import net.robinfriedli.botify.exceptions.NoResultsFoundException;
 
@@ -65,15 +65,15 @@ public class QueueCommand extends AbstractQueueLoadingCommand {
         playback.getAudioQueue().add(playables);
     }
 
-    private void listQueue() throws Exception {
+    private void listQueue() {
         Guild guild = getContext().getGuild();
         AudioManager audioManager = Botify.get().getAudioManager();
         AudioPlayback playback = audioManager.getPlaybackForGuild(guild);
         AudioQueue audioQueue = playback.getAudioQueue();
 
         CompletableFuture<Message> futureMessage = sendMessage(audioQueue.buildMessageEmbed(playback, guild));
-        WidgetManager widgetManager = getContext().getGuildContext().getWidgetManager();
-        widgetManager.registerWidget(new QueueWidget(widgetManager, futureMessage.get(), audioManager, playback));
+        WidgetRegistry widgetRegistry = getContext().getGuildContext().getWidgetRegistry();
+        futureMessage.thenAccept(message -> widgetRegistry.registerWidget(new QueueWidget(widgetRegistry, guild, message, playback)));
     }
 
     @Override

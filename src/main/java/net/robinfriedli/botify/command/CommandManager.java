@@ -25,8 +25,8 @@ import net.robinfriedli.botify.entities.Preset;
 import net.robinfriedli.botify.entities.StoredScript;
 import net.robinfriedli.botify.entities.xml.CommandContribution;
 import net.robinfriedli.botify.entities.xml.CommandInterceptorContribution;
-import net.robinfriedli.botify.exceptions.Abort;
-import net.robinfriedli.botify.exceptions.ExceptionUtils;
+import net.robinfriedli.botify.exceptions.CommandRuntimeException;
+import net.robinfriedli.botify.exceptions.handler.CommandExceptionHandlerExecutor;
 import net.robinfriedli.botify.persist.qb.QueryBuilderFactory;
 import net.robinfriedli.jxp.api.JxpBackend;
 import net.robinfriedli.jxp.persist.Context;
@@ -60,7 +60,7 @@ public class CommandManager {
     private CommandInterceptorChain interceptorChain;
     private CommandInterceptorChain interceptorChainWithoutScripting;
 
-    public CommandManager(@Value("${botify.preferences.enableScripting}") boolean isScriptingEnabled,
+    public CommandManager(@Value("${botify.preferences.enable_scripting}") boolean isScriptingEnabled,
                           @Value("classpath:xml-contributions/commands.xml") Resource commandResource,
                           @Value("classpath:xml-contributions/commandInterceptors.xml") Resource commandInterceptorResource,
                           EventWaiter eventWaiter,
@@ -90,7 +90,11 @@ public class CommandManager {
         try {
             doRunCommand(command);
         } catch (Exception e) {
-            ExceptionUtils.handleCommandException(e, command, logger);
+            try {
+                new CommandExceptionHandlerExecutor(command).handleException(e);
+            } catch (Throwable propagate) {
+                CommandRuntimeException.throwRuntimeException(propagate);
+            }
         } finally {
             ThreadContext.Current.clear();
         }
@@ -124,7 +128,6 @@ public class CommandManager {
             } else {
                 interceptorChainWithoutScripting.intercept(command);
             }
-        } catch (Abort ignored) {
         } finally {
             command.getContext().closeSession();
         }
@@ -280,7 +283,7 @@ public class CommandManager {
     public CommandContribution getCommandContribution(String name) {
         return commandContributionContext.query(and(
             instanceOf(CommandContribution.class),
-            attribute("identifier").is(name)
+            attribute("identifier").fuzzyIs(name)
         ), CommandContribution.class).getOnlyResult();
     }
 

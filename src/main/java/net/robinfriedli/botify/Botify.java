@@ -27,13 +27,16 @@ import net.robinfriedli.botify.boot.configurations.HibernateComponent;
 import net.robinfriedli.botify.boot.configurations.SpotifyComponent;
 import net.robinfriedli.botify.command.CommandManager;
 import net.robinfriedli.botify.command.SecurityManager;
+import net.robinfriedli.botify.command.widget.WidgetManager;
 import net.robinfriedli.botify.concurrent.CommandExecutionQueueManager;
 import net.robinfriedli.botify.cron.CronJobService;
 import net.robinfriedli.botify.discord.GuildManager;
 import net.robinfriedli.botify.discord.MessageService;
 import net.robinfriedli.botify.discord.property.GuildPropertyManager;
+import net.robinfriedli.botify.exceptions.handler.ExceptionHandlerRegistry;
 import net.robinfriedli.botify.login.LoginManager;
 import net.robinfriedli.botify.persist.qb.QueryBuilderFactory;
+import net.robinfriedli.botify.scripting.GroovyVariableManager;
 import net.robinfriedli.botify.servers.HttpServerManager;
 import net.robinfriedli.jxp.api.JxpBackend;
 import org.hibernate.SessionFactory;
@@ -60,7 +63,9 @@ public class Botify {
     private final CommandManager commandManager;
     private final ConfigurableApplicationContext springBootContext;
     private final CronJobService cronJobService;
+    private final ExceptionHandlerRegistry exceptionHandlerRegistry;
     private final GroovySandboxComponent groovySandboxComponent;
+    private final GroovyVariableManager groovyVariableManager;
     private final GuildManager guildManager;
     private final GuildPropertyManager guildPropertyManager;
     private final HibernateComponent hibernateComponent;
@@ -76,13 +81,16 @@ public class Botify {
     private final SpotifyComponent spotifyComponent;
     private final SpringPropertiesConfig springPropertiesConfig;
     private final VersionManager versionManager;
+    private final WidgetManager widgetManager;
 
     public Botify(AudioManager audioManager,
                   CommandExecutionQueueManager executionQueueManager,
                   CommandManager commandManager,
                   ConfigurableApplicationContext springBootContext,
                   CronJobService cronJobService,
+                  ExceptionHandlerRegistry exceptionHandlerRegistry,
                   GroovySandboxComponent groovySandboxComponent,
+                  GroovyVariableManager groovyVariableManager,
                   GuildManager guildManager,
                   GuildPropertyManager guildPropertyManager,
                   HibernateComponent hibernateComponent,
@@ -97,13 +105,16 @@ public class Botify {
                   SpotifyComponent spotifyComponent,
                   SpringPropertiesConfig springPropertiesConfig,
                   VersionManager versionManager,
+                  WidgetManager widgetManager,
                   ListenerAdapter... listeners) {
         this.audioManager = audioManager;
         this.executionQueueManager = executionQueueManager;
         this.commandManager = commandManager;
         this.springBootContext = springBootContext;
         this.cronJobService = cronJobService;
+        this.exceptionHandlerRegistry = exceptionHandlerRegistry;
         this.groovySandboxComponent = groovySandboxComponent;
+        this.groovyVariableManager = groovyVariableManager;
         this.guildManager = guildManager;
         this.guildPropertyManager = guildPropertyManager;
         this.hibernateComponent = hibernateComponent;
@@ -118,6 +129,7 @@ public class Botify {
         this.spotifyComponent = spotifyComponent;
         this.springPropertiesConfig = springPropertiesConfig;
         this.versionManager = versionManager;
+        this.widgetManager = widgetManager;
         this.registeredListeners = listeners;
         instance = this;
     }
@@ -128,6 +140,10 @@ public class Botify {
         }
 
         return instance;
+    }
+
+    public static boolean isInitialised() {
+        return instance != null;
     }
 
     public static void launch() throws IOException {
@@ -245,8 +261,16 @@ public class Botify {
         return cronJobService;
     }
 
+    public ExceptionHandlerRegistry getExceptionHandlerRegistry() {
+        return exceptionHandlerRegistry;
+    }
+
     public GroovySandboxComponent getGroovySandboxComponent() {
         return groovySandboxComponent;
+    }
+
+    public GroovyVariableManager getGroovyVariableManager() {
+        return groovyVariableManager;
     }
 
     public GuildManager getGuildManager() {
@@ -311,5 +335,9 @@ public class Botify {
 
     public VersionManager getVersionManager() {
         return versionManager;
+    }
+
+    public WidgetManager getWidgetManager() {
+        return widgetManager;
     }
 }
