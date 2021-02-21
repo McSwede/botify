@@ -150,7 +150,7 @@ public class AudioQueue {
         appendIcon(optionBuilder, EmojiConstants.SHUFFLE, playback.isShuffle());
         appendIcon(optionBuilder, EmojiConstants.REPEAT, playback.isRepeatAll());
         appendIcon(optionBuilder, EmojiConstants.REPEAT_ONE, playback.isRepeatOne());
-        optionBuilder.append(EmojiConstants.VOLUME).append(playback.getVolume());
+        //optionBuilder.append(EmojiConstants.VOLUME).append(playback.getVolume());
         embedBuilder.setDescription(optionBuilder.toString());
 
         String url = baseUri + String.format("/queue?guildId=%s", guild.getId());
