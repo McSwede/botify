@@ -70,7 +70,7 @@ dependencies {
     implementation "org.springframework:spring-core:5.3.3"
 
     // check if IPlaylistItem implementations were added when upgrading and update SpotifyTrack accordingly
-    implementation "se.michaelthelin.spotify:spotify-web-api-java:6.5.1"
+    implementation "se.michaelthelin.spotify:spotify-web-api-java:6.5.3"
 
     liquibaseRuntime sourceSets.main.runtimeClasspath
     liquibaseRuntime sourceSets.main.output
