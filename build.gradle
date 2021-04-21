@@ -40,7 +40,7 @@ dependencies {
 
     implementation "commons-validator:commons-validator:1.7"
 
-    implementation "net.dv8tion:JDA:4.2.1_256"
+    implementation "net.dv8tion:JDA:4.2.1_259"
     implementation "net.robinfriedli:exec:1.2"
     implementation "net.robinfriedli:JXP:2.0.4"
     implementation "net.robinfriedli:StringList:1.6"
@@ -70,7 +70,7 @@ dependencies {
     implementation "org.springframework:spring-core:5.3.3"
 
     // check if IPlaylistItem implementations were added when upgrading and update SpotifyTrack accordingly
-    implementation "se.michaelthelin.spotify:spotify-web-api-java:6.5.3"
+    implementation "se.michaelthelin.spotify:spotify-web-api-java:6.5.4"
 
     liquibaseRuntime sourceSets.main.runtimeClasspath
     liquibaseRuntime sourceSets.main.output
